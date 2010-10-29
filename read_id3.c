@@ -60,28 +60,28 @@ unsigned char read_ID3_info(const unsigned char tag_name,char * output_str, unsi
 	file_read(fp,common_header,sizeof(common_header),bytesRead);
 	if ((common_header[0]!='I')||(common_header[1]!='D')||(common_header[2]!='3')) return 0;
 	
-	if (common_header[3] <= 0x03) {   //recognized id3 v2
+	if (common_header[3] <= 0x04) {   //recognized id3 v2
 		unsigned int tag_size = (common_header[9]) | (common_header[8] << 7) | (common_header[7] << 14) | (common_header[6] << 28);
 		
+		const char * compare_tagname = ((common_header[3] == 0x03)||(common_header[3] == 0x04))? (id3v2_3+(tag_name*4)) : (id3v2_2+(tag_name*4));
 		int just_safe = 30;  //to avoid an infinite loop limit the number of iterations.
 		while (tag_size && just_safe--) {
 			unsigned char frame_header[10];
 			unsigned int fr_hdr_bytes = 0;
 			//the size of the data frames depends on the version varriant. 03=10 bytes, 02=6 bytes.
-			unsigned int frame_header_size = (common_header[3] == 0x03)? 10 : ((common_header[3]==0x02)? 6:6);
+			unsigned int frame_header_size = ((common_header[3] == 0x03)||(common_header[3] == 0x04))? 10 : ((common_header[3]==0x02)? 6:6);
 			file_read(fp,frame_header,frame_header_size,fr_hdr_bytes);
 			tag_size -= fr_hdr_bytes;
 			//check to make sure this TAG name is really a tag name.
-			unsigned int tagname_size = (common_header[3] == 0x03)? 4 : ((common_header[3]==0x02)? 3:3);
+			unsigned int tagname_size = ((common_header[3] == 0x03)||(common_header[3] == 0x04))? 4 : ((common_header[3]==0x02)? 3:3);
 			for (int jj=0;jj<tagname_size;jj++) if ((frame_header[jj]>'Z')||(frame_header[jj]<'0')) return 0;
 			unsigned long frame_size;
-			if (common_header[3] == 0x03)
+			if ((common_header[3] == 0x03)||(common_header[3] == 0x04))
 				frame_size = (frame_header[7]) | (frame_header[6] << 8) | (frame_header[5] << 16) | ((frame_header[4] << 16) << 16);
 			else //if (common_header[3] == 0x02)
 				frame_size = (frame_header[5]) | (frame_header[4] << 8) | (frame_header[3] << 16);
 			
 			//check to see if we've got the right tag as was asked for:
-			const char * compare_tagname = (common_header[3] == 0x03)? (id3v2_3+(tag_name*4)) : (id3v2_2+(tag_name*4));
 			if (0==strncmp((char*)frame_header,compare_tagname,tagname_size)){
 				file_seek_relative(fp,1); //skip past empty byte.
 				
@@ -122,7 +122,7 @@ unsigned char read_ID3_info(const unsigned char tag_name,char * output_str, unsi
 				tag_size -= frame_size;
 			}
 		}
-		return 1;
+		return 0;
 	}
 	else return 0;
 }
